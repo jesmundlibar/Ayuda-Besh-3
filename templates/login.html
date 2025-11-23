@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Login - AyudaBesh{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="desktop">
+    <div class="image-container">
+        <img class="image" src="{{ url_for('static', filename='images/logo.png') }}" alt="AyudaBesh Logo" width="200" height="200">
+    </div>
+
+    <div class="login-container">
+        <form class="login-form" id="loginForm">
+            <h2>Log In to Your Account</h2>
+
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+            <div class="input-group">
+                <label for="username">Username</label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    placeholder="Enter your username"
+                    required
+                />
+            </div>
+
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="Enter your password"
+                    required
+                />
+            </div>
+
+            <div class="role-selector">
+                <label>
+                    <input
+                        type="radio"
+                        name="role"
+                        value="customer"
+                        checked
+                    />
+                    Customer
+                </label>
+                <label>
+                    <input
+                        type="radio"
+                        name="role"
+                        value="provider"
+                    />
+                    Provider
+                </label>
+            </div>
+
+            <button type="submit" class="login-button" id="loginButton">
+                Log in
+            </button>
+
+            <div class="links">
+                <a href="{{ url_for('frontend.signup') }}">Create an account</a>
+                <a href="#">Forgot password?</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const errorDiv = document.getElementById('errorMessage');
+    const loginButton = document.getElementById('loginButton');
+    const formData = {
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value,
+        role: document.querySelector('input[name="role"]:checked').value
+    };
+    
+    // Hide error, show loading
+    errorDiv.style.display = 'none';
+    loginButton.disabled = true;
+    loginButton.textContent = 'Logging in...';
+    
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData),
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        const data = await response.json();
+        
+        if (!response.ok) {
+            errorDiv.textContent = data.error || 'Login failed';
+            errorDiv.style.display = 'block';
+            loginButton.disabled = false;
+            loginButton.textContent = 'Log in';
+            return;
+        }
+        
+        // Store user info
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('token', data.token);
+        
+        // Redirect based on role
+        const redirectUrl = formData.role === 'customer' ? '/customer/dashboard' : '/provider/dashboard';
+        window.location.href = redirectUrl;
+        
+    } catch (err) {
+        let errorMsg = 'An error occurred during login.';
+        if (err.name === 'AbortError') {
+            errorMsg = 'Request timed out. Please check your connection and try again.';
+        } else if (err.message) {
+            errorMsg = err.message;
+        }
+        
+        errorDiv.textContent = errorMsg;
+        errorDiv.style.display = 'block';
+        loginButton.disabled = false;
+        loginButton.textContent = 'Log in';
+    }
+});
+</script>
+{% endblock %}
+
