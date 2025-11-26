@@ -1,29 +1,29 @@
+# routes/frontend.py
+
 from flask import Blueprint, render_template
+from lib.decorators import token_required
 
 frontend_bp = Blueprint('frontend', __name__)
 
 @frontend_bp.route('/')
 def home():
-    """Home/Landing page"""
     return render_template('home.html')
 
-@frontend_bp.route('/login')
+# ✅ Only handle GET requests (show login form)
+@frontend_bp.route('/login', methods=['GET'])
 def login():
-    """Login page"""
     return render_template('login.html')
 
-@frontend_bp.route('/signup')
+@frontend_bp.route('/signup', methods=['GET'])
 def signup():
-    """Signup page"""
     return render_template('signup.html')
 
 @frontend_bp.route('/customer/dashboard')
+@token_required
 def customer_dashboard():
-    """Customer dashboard"""
     return render_template('customer/dashboard.html')
 
 @frontend_bp.route('/provider/dashboard')
+@token_required
 def provider_dashboard():
-    """Provider dashboard"""
     return render_template('provider/dashboard.html')
-

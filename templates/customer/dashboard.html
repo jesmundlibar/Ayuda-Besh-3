@@ -1,12 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Customer Dashboard</title>
-</head>
-<body>
-    <h1>Customer Dashboard</h1>
-    <p>Welcome! You're logged in as a customer.</p>
-    <a href="/">Go Home</a>
-</body>
-</html>
+<!-- templates/customer/dashboard.html -->
+{% extends "base.html" %}
+
+{% block title %}Customer Dashboard{% endblock %}
+
+{% block content %}
+<div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; justify-content: space-between;">
+    <div>
+        <h2>Customer Dashboard</h2>
+        <script>
+            const user = JSON.parse(localStorage.getItem('user') || 'null');
+            if (user) document.write(`<p>Hello, <strong>${user.username}</strong>!</p>`);
+        </script>
+    </div>
+    <button onclick="logout()" style="background: #d9534f; color: white; border: none; padding: 8px 16px; border-radius: 4px;">Logout</button>
+</div>
+{% endblock %}

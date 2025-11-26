@@ -13,7 +13,8 @@
     </div>
 
     <div class="login-container">
-        <form class="login-form" id="loginForm">
+        <!-- ✅ Prevent default form submission -->
+        <form class="login-form" id="loginForm" onsubmit="return false;">
             <h2>Log In to Your Account</h2>
 
             <div id="errorMessage" class="error-message" style="display: none;"></div>
@@ -75,66 +76,66 @@
 
 {% block extra_js %}
 <script>
-document.getElementById('loginForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
+// ✅ Debug: Confirm JS is loading
+console.log("✅ Login.js loaded");
+
+try {
+    const loginForm = document.getElementById('loginForm');
+    if (!loginForm) {
+        throw new Error("Login form not found");
+    }
     
-    const errorDiv = document.getElementById('errorMessage');
-    const loginButton = document.getElementById('loginButton');
-    const formData = {
-        username: document.getElementById('username').value,
-        password: document.getElementById('password').value,
-        role: document.querySelector('input[name="role"]:checked').value
-    };
-    
-    // Hide error, show loading
-    errorDiv.style.display = 'none';
-    loginButton.disabled = true;
-    loginButton.textContent = 'Logging in...';
-    
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
+    loginForm.addEventListener('submit', async function(e) {
+        console.log("🚀 Form submitted! Preventing default...");
+        e.preventDefault();
         
-        const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData),
-            signal: controller.signal
-        });
+        const errorDiv = document.getElementById('errorMessage');
+        const loginButton = document.getElementById('loginButton');
+        const formData = {
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value,
+            role: document.querySelector('input[name="role"]:checked').value
+        };
         
-        clearTimeout(timeoutId);
-        const data = await response.json();
+        errorDiv.style.display = 'none';
+        loginButton.disabled = true;
+        loginButton.textContent = 'Logging in...';
         
-        if (!response.ok) {
-            errorDiv.textContent = data.error || 'Login failed';
+        try {
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                errorDiv.textContent = data.error || 'Login failed';
+                errorDiv.style.display = 'block';
+                loginButton.disabled = false;
+                loginButton.textContent = 'Log in';
+                return;
+            }
+            
+            localStorage.setItem('user', JSON.stringify(data.user));
+            localStorage.setItem('token', data.token);
+            
+            const redirectUrl = formData.role === 'customer' ? '/customer/dashboard' : '/provider/dashboard';
+            console.log(`➡️ Redirecting to ${redirectUrl}`);
+            window.location.href = redirectUrl;
+            
+        } catch (err) {
+            errorDiv.textContent = 'Network error: ' + (err.message || 'Please try again');
             errorDiv.style.display = 'block';
             loginButton.disabled = false;
             loginButton.textContent = 'Log in';
-            return;
         }
-        
-        // Store user info
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('token', data.token);
-        
-        // Redirect based on role
-        const redirectUrl = formData.role === 'customer' ? '/customer/dashboard' : '/provider/dashboard';
-        window.location.href = redirectUrl;
-        
-    } catch (err) {
-        let errorMsg = 'An error occurred during login.';
-        if (err.name === 'AbortError') {
-            errorMsg = 'Request timed out. Please check your connection and try again.';
-        } else if (err.message) {
-            errorMsg = err.message;
-        }
-        
-        errorDiv.textContent = errorMsg;
-        errorDiv.style.display = 'block';
-        loginButton.disabled = false;
-        loginButton.textContent = 'Log in';
-    }
-});
+    });
+    
+    console.log("✅ Event listener attached");
+} catch (err) {
+    console.error("❌ Login initialization failed:", err);
+}
 </script>
 {% endblock %}
-

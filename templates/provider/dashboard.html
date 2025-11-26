@@ -1,12 +1,41 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Provider Dashboard</title>
-</head>
-<body>
-    <h1>Provider Dashboard</h1>
-    <p>Welcome! You're logged in as a service provider.</p>
-    <a href="/">Go Home</a>
-</body>
-</html>
+<!-- templates/provider/dashboard.html -->
+{% extends "base.html" %}
+
+{% block title %}Provider Dashboard{% endblock %}
+
+{% block content %}
+<div style="
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+">
+    <div>
+        <h2>Provider Dashboard</h2>
+        <script>
+            const user = JSON.parse(localStorage.getItem('user') || 'null');
+            if (user) {
+                document.write(`
+                    <p>Hello, <strong>${user.username}</strong>! You're logged in as a <em>provider</em>.</p>
+                `);
+            }
+        </script>
+    </div>
+    <button onclick="logout()" 
+            style="background: #d9534f; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+        Logout
+    </button>
+</div>
+
+<div style="background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <h3>Quick Actions</h3>
+    <button onclick="alert('Coming soon: View available requests!')" 
+            style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-top: 10px;">
+        View Requests
+    </button>
+</div>
+{% endblock %}
