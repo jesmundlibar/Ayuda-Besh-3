@@ -54,24 +54,41 @@
         </div>
 
         <div style="margin: 20px 0;">
+            <label for="serviceRadius" style="display: block; margin-bottom: 8px;">Service Radius (km):</label>
+            <input type="number" id="serviceRadius" value="10" min="1" max="100" 
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"
+                   placeholder="How far will you travel for jobs?">
+            <p style="font-size: 12px; color: #666; margin-top: 5px;">Customers beyond this radius will see a warning</p>
+        </div>
+
+        <div style="margin: 20px 0;">
             <label for="description" style="display: block; margin-bottom: 8px;">Service Description:</label>
             <textarea id="description" rows="4" 
                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"
-                      placeholder="Describe your services, experience, and specialties...">Experienced plumber with 5+ years in residential and commercial plumbing. Licensed and insured.</textarea>
+                      placeholder="Describe your services, experience, and specialties...">Experienced professional with 5+ years in this field. Licensed and insured.</textarea>
         </div>
 
         <div style="margin: 20px 0;">
             <label style="display: block; margin-bottom: 8px;">Service Areas:</label>
             <input type="text" id="serviceAreas" value="Manila, Quezon City" 
                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"
-                   placeholder="Enter cities or areas you serve">
+                   placeholder="Enter cities or areas you serve (e.g., Manila, Makati, Pasig)">
         </div>
 
         <div style="margin: 20px 0;">
-            <label style="display: block; margin-bottom: 8px;">Upload Certificates (Optional):</label>
-            <input type="file" id="certificates" multiple accept=".pdf,.jpg,.png" 
+            <label style="display: block; margin-bottom: 8px;">Equipment & Tools:</label>
+            <textarea id="equipment" rows="3"
+                      style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"
+                      placeholder="List the equipment, tools, or vehicles you use for your services...">Professional tools, ladder, service vehicle</textarea>
+            <p style="font-size: 12px; color: #666; margin-top: 5px;">This helps customers understand your capabilities</p>
+        </div>
+
+        <div style="margin: 20px 0;">
+            <label style="display: block; margin-bottom: 8px;">Upload Certificates (Optional but recommended):</label>
+            <input type="file" id="certificates" multiple accept=".pdf,.jpg,.png,.jpeg" 
                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-            <p style="font-size: 12px; color: #666; margin-top: 5px;">Upload your professional licenses, certifications, or ID documents</p>
+            <p style="font-size: 12px; color: #666; margin-top: 5px;">Upload licenses, certifications, insurance documents, or ID (Max 10MB each)</p>
+            <div id="uploadedFiles" style="margin-top: 10px; display: none;"></div>
         </div>
 
         <button onclick="saveServices()" 
@@ -86,6 +103,12 @@
         <div id="currentServices" style="margin-top: 15px;">
             <p>Loading your current services...</p>
         </div>
+    </div>
+
+    <!-- Profile Completion -->
+    <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #4caf50;">
+        <h4 style="margin: 0 0 10px 0; color: #2e7d32;">✅ Profile Completion: <span id="completionPercentage">0</span>%</h4>
+        <p style="margin: 0; font-size: 14px;">Complete your profile to appear in more search results and attract more customers!</p>
     </div>
 </div>
 
@@ -111,6 +134,10 @@ async function loadProviderProfile() {
             document.getElementById('hourlyRate').value = user.hourly_rate;
         }
         
+        if (user.service_radius) {
+            document.getElementById('serviceRadius').value = user.service_radius;
+        }
+        
         if (user.location) {
             document.getElementById('serviceAreas').value = user.location;
         }
@@ -119,8 +146,13 @@ async function loadProviderProfile() {
             document.getElementById('description').value = user.description;
         }
         
+        if (user.equipment) {
+            document.getElementById('equipment').value = user.equipment;
+        }
+        
         // Display current services
         displayCurrentServices(user.services_offered || []);
+        updateProfileCompletion();
         
     } catch (error) {
         console.error('Error loading provider profile:', error);
@@ -150,6 +182,24 @@ function displayCurrentServices(services) {
     document.getElementById('currentServices').innerHTML = html;
 }
 
+// Handle file uploads (preview only - actual upload would be server-side)
+document.getElementById('certificates').addEventListener('change', function(e) {
+    const files = e.target.files;
+    const uploadedDiv = document.getElementById('uploadedFiles');
+    
+    if (files.length > 0) {
+        uploadedDiv.style.display = 'block';
+        let fileHtml = '<p><strong>Selected files:</strong></p><ul style="margin: 5px 0; padding-left: 20px;">';
+        for (let i = 0; i < files.length; i++) {
+            fileHtml += `<li>${files[i].name} (${(files[i].size / 1024 / 1024).toFixed(2)} MB)</li>`;
+        }
+        fileHtml += '</ul>';
+        uploadedDiv.innerHTML = fileHtml;
+    } else {
+        uploadedDiv.style.display = 'none';
+    }
+});
+
 async function saveServices() {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -169,30 +219,113 @@ async function saveServices() {
     }
     
     const hourlyRate = document.getElementById('hourlyRate').value;
+    const serviceRadius = document.getElementById('serviceRadius').value;
     const serviceAreas = document.getElementById('serviceAreas').value;
     const description = document.getElementById('description').value;
+    const equipment = document.getElementById('equipment').value;
     
     try {
-        // In a real app, you'd send this to your API
-        const user = JSON.parse(localStorage.getItem('user'));
-        user.services_offered = selectedServices;
-        user.hourly_rate = parseInt(hourlyRate);
-        user.location = serviceAreas;
-        user.description = description;
+        // Send to actual API endpoint
+        const response = await fetch('/api/update-profile', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                services: selectedServices,
+                hourly_rate: parseInt(hourlyRate),
+                service_radius: parseInt(serviceRadius),
+                location: serviceAreas,
+                description: description,
+                equipment: equipment
+                // In real app: include certificate upload logic
+            })
+        });
         
-        // Update localStorage
-        localStorage.setItem('user', JSON.stringify(user));
-        
-        alert('Services updated successfully!');
-        window.location.href = '/provider/dashboard';
-        
+        const result = await response.json();
+        if (response.ok) {
+            // Update user in localStorage
+            const user = JSON.parse(localStorage.getItem('user'));
+            user.services_offered = selectedServices;
+            user.hourly_rate = parseInt(hourlyRate);
+            user.service_radius = parseInt(serviceRadius);
+            user.location = serviceAreas;
+            user.description = description;
+            user.equipment = equipment;
+            localStorage.setItem('user', JSON.stringify(user));
+            
+            alert('Services updated successfully!');
+            window.location.href = '/provider/dashboard';
+        } else {
+            alert('Error: ' + (result.error || 'Failed to update services'));
+        }
     } catch (error) {
         console.error('Error saving services:', error);
-        alert('Failed to save services. Please try again.');
+        alert('Network error. Please try again.');
     }
 }
 
-// Initialize
-document.addEventListener('DOMContentLoaded', loadProviderProfile);
+// Calculate profile completion percentage
+function updateProfileCompletion() {
+    let score = 0;
+    const totalPoints = 6;
+    
+    // Services selected
+    const servicesChecked = document.querySelectorAll('input[name="services"]:checked').length;
+    if (servicesChecked > 0) score++;
+    
+    // Hourly rate set
+    const hourlyRate = document.getElementById('hourlyRate').value;
+    if (hourlyRate && parseInt(hourlyRate) >= 100) score++;
+    
+    // Service radius set
+    const serviceRadius = document.getElementById('serviceRadius').value;
+    if (serviceRadius && parseInt(serviceRadius) >= 1) score++;
+    
+    // Service areas filled
+    const serviceAreas = document.getElementById('serviceAreas').value;
+    if (serviceAreas && serviceAreas.trim().length > 5) score++;
+    
+    // Description filled
+    const description = document.getElementById('description').value;
+    if (description && description.trim().length > 20) score++;
+    
+    // Equipment filled
+    const equipment = document.getElementById('equipment').value;
+    if (equipment && equipment.trim().length > 10) score++;
+    
+    const percentage = Math.round((score / totalPoints) * 100);
+    document.getElementById('completionPercentage').textContent = percentage;
+    
+    // Update completion color
+    const completionDiv = document.querySelector('#completionPercentage').parentElement;
+    if (percentage >= 80) {
+        completionDiv.style.borderLeftColor = '#4caf50';
+        completionDiv.style.background = '#e8f5e9';
+    } else if (percentage >= 50) {
+        completionDiv.style.borderLeftColor = '#ff9800';
+        completionDiv.style.background = '#fff3e0';
+    } else {
+        completionDiv.style.borderLeftColor = '#f44336';
+        completionDiv.style.background = '#ffebee';
+    }
+}
+
+// Initialize and add event listeners for real-time completion updates
+document.addEventListener('DOMContentLoaded', () => {
+    loadProviderProfile();
+    
+    // Update completion when any field changes
+    const inputs = document.querySelectorAll('input, textarea, select');
+    inputs.forEach(input => {
+        input.addEventListener('input', updateProfileCompletion);
+    });
+    
+    const checkboxes = document.querySelectorAll('input[name="services"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateProfileCompletion);
+    });
+});
 </script>
 {% endblock %}

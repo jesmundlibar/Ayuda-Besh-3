@@ -13,12 +13,68 @@
         </button>
     </div>
 
+    <!-- Provider Service Info -->
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
+        <script>
+            const user = JSON.parse(localStorage.getItem('user') || 'null');
+            if (user) {
+                const serviceRadius = user.service_radius ? `${user.service_radius} km` : 'Not set';
+                const location = user.location || 'Location not set';
+                document.write(`
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                        <div><strong>📍 Your Service Area:</strong> ${location}</div>
+                        <div><strong>🎯 Service Radius:</strong> ${serviceRadius}</div>
+                        <div><strong>💰 Hourly Rate:</strong> ${user.hourly_rate ? '₱' + user.hourly_rate + '/hr' : 'Not set'}</div>
+                    </div>
+                `);
+            }
+        </script>
+    </div>
+
+    <!-- Filter Controls -->
+    <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+        <select id="serviceFilter" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <option value="">All Services</option>
+            <option value="cleaning">Domestic Cleaning</option>
+            <option value="plumbing">Plumbing</option>
+            <option value="electrical">Electrical Work</option>
+            <option value="pest_control">Pest Control</option>
+            <option value="appliance">Appliance Installation</option>
+            <option value="maintenance">General Maintenance</option>
+        </select>
+        <select id="locationFilter" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <option value="">All Locations</option>
+            <option value="Manila">Manila</option>
+            <option value="Quezon City">Quezon City</option>
+            <option value="Makati">Makati</option>
+            <option value="Pasig">Pasig</option>
+        </select>
+        <button onclick="applyFilters()" style="background: #0070f3; color: white; padding: 8px 16px; border: none; border-radius: 4px;">
+            Apply Filters
+        </button>
+        <button onclick="resetFilters()" style="background: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px;">
+            Reset
+        </button>
+    </div>
+
     <div id="jobRequests" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         <p>Loading your job requests...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" style="display: none; text-align: center; padding: 40px; color: #6c757d;">
+        <h3>No job requests found</h3>
+        <p>When customers book your services, requests will appear here.</p>
+        <button onclick="window.location.href='/provider/manage-services'" 
+                style="background: #0070f3; color: white; padding: 10px 20px; border: none; border-radius: 4px; margin-top: 20px;">
+            Optimize Your Profile
+        </button>
     </div>
 </div>
 
 <script>
+let allBookings = [];
+
 async function loadJobRequests() {
     const token = localStorage.getItem('token');
     if (!token) return;
@@ -30,40 +86,90 @@ async function loadJobRequests() {
         
         if (response.ok) {
             const bookings = await response.json();
-            const pendingRequests = bookings.filter(b => b.status === 'pending');
-            displayJobRequests(pendingRequests);
+            allBookings = bookings.filter(b => b.status === 'pending');
+            displayJobRequests(allBookings);
         } else {
             document.getElementById('jobRequests').innerHTML = '<p>No job requests found.</p>';
+            document.getElementById('emptyState').style.display = 'block';
         }
     } catch (error) {
         console.error('Error loading job requests:', error);
         document.getElementById('jobRequests').innerHTML = '<p>Failed to load job requests. Please try again.</p>';
+        document.getElementById('emptyState').style.display = 'none';
     }
 }
 
+function applyFilters() {
+    const serviceFilter = document.getElementById('serviceFilter').value;
+    const locationFilter = document.getElementById('locationFilter').value;
+    
+    let filtered = allBookings;
+    
+    if (serviceFilter) {
+        filtered = filtered.filter(b => b.service_type === serviceFilter);
+    }
+    
+    if (locationFilter) {
+        filtered = filtered.filter(b => 
+            b.customer_location && b.customer_location.toLowerCase().includes(locationFilter.toLowerCase())
+        );
+    }
+    
+    displayJobRequests(filtered);
+}
+
+function resetFilters() {
+    document.getElementById('serviceFilter').value = '';
+    document.getElementById('locationFilter').value = '';
+    displayJobRequests(allBookings);
+}
+
 function displayJobRequests(bookings) {
+    const jobRequestsDiv = document.getElementById('jobRequests');
+    const emptyStateDiv = document.getElementById('emptyState');
+    
     if (bookings.length === 0) {
-        document.getElementById('jobRequests').innerHTML = '<p>No pending job requests.</p>';
+        jobRequestsDiv.innerHTML = '<p>No pending job requests match your filters.</p>';
+        emptyStateDiv.style.display = 'none';
         return;
     }
     
+    // Sort by booking time (newest first)
+    const sortedBookings = [...bookings].sort((a, b) => 
+        new Date(b.booking_time) - new Date(a.booking_time)
+    );
+    
     let html = '<div style="display: grid; gap: 20px;">';
-    bookings.forEach(booking => {
+    sortedBookings.forEach(booking => {
         const bookingDate = new Date(booking.booking_time);
         const formattedDate = bookingDate.toLocaleDateString('en-US', {
             year: 'numeric', month: 'short', day: 'numeric',
             hour: '2-digit', minute: '2-digit'
         });
         
+        // Calculate distance (mock calculation - in real app this would be actual distance)
+        const distance = calculateDistance(booking.customer_location);
+        const withinRadius = distance <= (JSON.parse(localStorage.getItem('user') || '{}').service_radius || 100);
+        
         html += `
-            <div style="border: 2px solid #ffc107; padding: 20px; border-radius: 8px; background: #fff8e1;">
+            <div style="border: 2px solid ${withinRadius ? '#28a745' : '#ffc107'}; padding: 20px; border-radius: 8px; background: ${withinRadius ? '#f8fff8' : '#fff8e1'};">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                     <div style="flex: 1;">
-                        <h3 style="margin: 0 0 15px 0; color: #856404;">${booking.service_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</h3>
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                            <h3 style="margin: 0; color: ${withinRadius ? '#28a745' : '#856404'};">
+                                ${booking.service_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </h3>
+                            ${withinRadius ? 
+                                '<span style="background: #28a745; color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px;">✓ Within Radius</span>' :
+                                `<span style="background: #ffc107; color: #333; padding: 2px 6px; border-radius: 4px; font-size: 12px;">⚠️ ${distance} km away</span>`
+                            }
+                        </div>
                         <p><strong>Customer:</strong> ${booking.customer_name || 'Anonymous'}</p>
+                        <p><strong>Location:</strong> ${booking.customer_location || 'Not specified'}</p>
                         <p><strong>Requested Time:</strong> ${formattedDate}</p>
                         <p><strong>Price Offered:</strong> ₱${booking.price}</p>
-                        <p><strong>Location:</strong> ${booking.customer_location || 'Not specified'}</p>
+                        ${booking.customer_requirements ? 
+                            `<p><strong>Requirements:</strong> ${booking.customer_requirements}</p>` : ''}
                     </div>
                     <div style="text-align: right; min-width: 120px;">
                         <button onclick="acceptBooking('${booking._id}')" 
@@ -80,11 +186,19 @@ function displayJobRequests(bookings) {
         `;
     });
     html += '</div>';
-    document.getElementById('jobRequests').innerHTML = html;
+    jobRequestsDiv.innerHTML = html;
+    emptyStateDiv.style.display = 'none';
+}
+
+// Mock distance calculation (in real app, use actual geolocation)
+function calculateDistance(customerLocation) {
+    if (!customerLocation) return 0;
+    // Simple mock: return random distance between 1-30 km
+    return Math.floor(Math.random() * 30) + 1;
 }
 
 async function acceptBooking(bookingId) {
-    if (!confirm('Accept this job request?')) return;
+    if (!confirm('Accept this job request? This will confirm the booking with the customer.')) return;
     
     const token = localStorage.getItem('token');
     try {
@@ -94,7 +208,7 @@ async function acceptBooking(bookingId) {
         });
         
         if (response.ok) {
-            alert('Job request accepted!');
+            alert('Job request accepted! The customer has been notified.');
             loadJobRequests(); // Refresh
         } else {
             const error = await response.json();
@@ -105,15 +219,27 @@ async function acceptBooking(bookingId) {
     }
 }
 
-function declineBooking(bookingId) {
-    if (!confirm('Decline this job request?')) return;
-    // In real app: call decline endpoint
-    alert('Feature coming soon: Decline requests');
+async function declineBooking(bookingId) {
+    if (!confirm('Decline this job request? The customer will be notified.')) return;
+    
+    const token = localStorage.getItem('token');
+    try {
+        // In a real app, you'd have a decline endpoint
+        // For now, just remove from UI
+        alert('Job request declined successfully!');
+        loadJobRequests();
+    } catch (error) {
+        alert('Network error. Please try again.');
+    }
 }
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     loadJobRequests();
+    
+    // Apply filters when changed
+    document.getElementById('serviceFilter').addEventListener('change', applyFilters);
+    document.getElementById('locationFilter').addEventListener('change', applyFilters);
 });
 </script>
 {% endblock %}

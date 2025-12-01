@@ -32,10 +32,19 @@
                     '<span style="background: #28a745; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; margin-left: 8px;">Verified ✅</span>' :
                     '<span style="background: #ffc107; color: #333; padding: 4px 8px; border-radius: 12px; font-size: 12px; margin-left: 8px;">Pending Verification</span>';
                 
+                // Display service radius and equipment
+                const serviceRadius = user.service_radius ? `${user.service_radius} km` : 'Not set';
+                const equipment = user.equipment || 'No equipment specified';
+                const location = user.location || 'Location not set';
+                
                 document.write(`
                     <h2>Hello, <strong>${user.fullName}</strong>! ${verifiedStatus}</h2>
                     <p>You're logged in as a <em>service provider</em>. Manage your services, accept job requests, and track your earnings.</p>
-                    ${!user.is_verified ? '<p style="color: #856404; background: #fff3cd; padding: 10px; border-radius: 4px; margin-top: 10px;"><strong>⚠️ Your account is pending verification.</strong> Our admin team will review your documents shortly.</p>' : ''}
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px; font-size: 14px;">
+                        <div><strong>📍 Service Area:</strong> ${location} <em>(Radius: ${serviceRadius})</em></div>
+                        <div><strong>🔧 Equipment:</strong> ${equipment}</div>
+                    </div>
+                    ${!user.is_verified ? '<p style="color: #856404; background: #fff3cd; padding: 10px; border-radius: 4px; margin-top: 15px;"><strong>⚠️ Your account is pending verification.</strong> Our admin team will review your documents shortly.</p>' : ''}
                 `);
             }
         </script>
@@ -61,6 +70,14 @@
         </div>
     </div>
 
+    <!-- Service Profile Summary -->
+    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px;">
+        <h3>Your Service Profile</h3>
+        <div id="serviceProfile" style="margin-top: 15px;">
+            <p>Loading your service profile...</p>
+        </div>
+    </div>
+
     <!-- Quick Actions -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px;">
         <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -73,11 +90,11 @@
         </div>
         
         <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h3>📅 My Availability</h3>
-            <p>Set your working hours and availability calendar.</p>
-            <button onclick="alert('Feature coming soon!')" 
-                    style="background: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px; margin-top: 10px;">
-                Set Availability
+            <h3>🛠️ Manage Services</h3>
+            <p>Update your services, pricing, and profile information.</p>
+            <button onclick="window.location.href='/provider/manage-services'" 
+                    style="background: #0070f3; color: white; padding: 8px 16px; border: none; border-radius: 4px; margin-top: 10px;">
+                Edit Profile
             </button>
         </div>
     </div>
@@ -92,7 +109,7 @@
 </div>
 
 <script>
-// Load provider stats and activity
+// Load provider stats, profile, and activity
 async function loadProviderData() {
     const token = localStorage.getItem('token');
     if (!token) return;
@@ -110,10 +127,72 @@ async function loadProviderData() {
         } else {
             document.getElementById('recentActivity').innerHTML = '<p>No activity found.</p>';
         }
+        
+        // Load and display service profile
+        displayServiceProfile();
+        
     } catch (error) {
-        console.error('Error loading provider ', error);
+        console.error('Error loading provider data:', error);
         document.getElementById('recentActivity').innerHTML = '<p>Failed to load data. Please try again.</p>';
     }
+}
+
+function displayServiceProfile() {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!user) {
+        document.getElementById('serviceProfile').innerHTML = '<p>No profile data available.</p>';
+        return;
+    }
+    
+    // Service categories
+    const serviceNames = {
+        'cleaning': 'Domestic Cleaning',
+        'plumbing': 'Plumbing',
+        'electrical': 'Electrical Work',
+        'pest_control': 'Pest Control',
+        'appliance': 'Appliance Installation',
+        'maintenance': 'General Maintenance'
+    };
+    
+    let servicesHtml = '';
+    if (user.services_offered && user.services_offered.length > 0) {
+        servicesHtml = user.services_offered.map(service => 
+            `<span style="background: #e9ecef; color: #495057; padding: 4px 8px; border-radius: 12px; font-size: 12px; margin-right: 6px;">${serviceNames[service] || service}</span>`
+        ).join('');
+    } else {
+        servicesHtml = '<span style="color: #6c757d;">No services selected</span>';
+    }
+    
+    // Hourly rate
+    const hourlyRate = user.hourly_rate ? `₱${user.hourly_rate}/hr` : 'Not set';
+    
+    // Service radius
+    const serviceRadius = user.service_radius ? `${user.service_radius} km` : 'Not set';
+    
+    const profileHtml = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div>
+                <h4 style="margin: 0 0 10px 0; color: #495057;">Services Offered</h4>
+                <div>${servicesHtml}</div>
+            </div>
+            <div>
+                <h4 style="margin: 0 0 10px 0; color: #495057;">Pricing</h4>
+                <p style="margin: 0; font-size: 14px;">${hourlyRate}</p>
+            </div>
+            <div>
+                <h4 style="margin: 0 0 10px 0; color: #495057;">Service Radius</h4>
+                <p style="margin: 0; font-size: 14px;">${serviceRadius}</p>
+            </div>
+        </div>
+        ${user.description ? `
+            <div style="margin-top: 15px;">
+                <h4 style="margin: 0 0 10px 0; color: #495057;">About</h4>
+                <p style="margin: 0; font-size: 14px;">${user.description}</p>
+            </div>
+        ` : ''}
+    `;
+    
+    document.getElementById('serviceProfile').innerHTML = profileHtml;
 }
 
 function updateStats(bookings) {
@@ -121,7 +200,6 @@ function updateStats(bookings) {
     const totalEarnings = completedJobs.reduce((sum, b) => sum + b.price, 0);
     const pendingRequests = bookings.filter(b => b.status === 'pending').length;
     
-    // Calculate average rating (assuming ratings are stored in bookings)
     let totalRating = 0;
     let ratingCount = 0;
     completedJobs.forEach(booking => {
@@ -144,7 +222,6 @@ function displayRecentActivity(bookings) {
         return;
     }
     
-    // Sort by date (newest first) and take top 5
     const recentBookings = [...bookings]
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         .slice(0, 5);
@@ -217,9 +294,7 @@ async function acceptBooking(bookingId) {
 
 async function declineBooking(bookingId) {
     if (!confirm('Decline this booking request?')) return;
-    
-    // In a real app, you'd have a decline endpoint
-    alert('Feature coming soon: Decline requests');
+    alert('Feature coming soon: Decline requests with reason');
     loadProviderData();
 }
 
